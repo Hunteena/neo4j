@@ -60,14 +60,15 @@ def get_person_events():
         )
 
     with driver.session() as session:
-        events = session.execute_read(get_events_from_db, name=name)[0]
-        events_graphml, event_ids = events[0], events[1]
-    if not events_graphml:
+        events = session.execute_read(get_events_from_db, name=name)
+
+    if not events:
         raise InvalidAPIUsage(f"Не найден: {name}.", 404)
+    events_xml, event_ids = events[0][0], events[0][1]
 
     filename = request.args.get('filename', default='output.graphml')
     with open(filename, 'w') as graphml_file:
-        graphml_file.write(events_graphml[0])
+        graphml_file.write(events_xml)
     response = {
         'message': f"События для {name} записаны в файл '{filename}'.",
         'events': event_ids
