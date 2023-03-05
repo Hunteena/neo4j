@@ -12,7 +12,7 @@
     ```shell
     git clone https://github.com/Hunteena/neo4j.git
     ```
-2. Создайте файл .env, аналогичный файлу [.ev.exmple](.env.example), и внесите в него свои значения.   
+2. Создайте файл .env, аналогичный файлу [.env.example](.env.example), и внесите в него свои значения.   
 
 3. Установите зависимости
     ```shell
