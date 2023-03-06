@@ -2,28 +2,8 @@ import os
 
 import flask
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import current_app, Flask, jsonify, request
 from neo4j import GraphDatabase
-
-load_dotenv()
-
-app = Flask('app')
-
-
-def init_driver(uri: str, username: str, password: str):
-    # Create a new Driver instance
-    app.driver = GraphDatabase.driver(uri, auth=(username, password))
-
-    # Verify the connection details
-    app.driver.verify_connectivity()
-    return app.driver
-
-
-driver = init_driver(
-    os.getenv('NEO4J_URI'),
-    os.getenv('NEO4J_USERNAME'),
-    os.getenv('NEO4J_PASSWORD')
-)
 
 
 class InvalidAPIUsage(Exception):
@@ -31,11 +11,6 @@ class InvalidAPIUsage(Exception):
         super().__init__()
         self.message = message
         self.status_code = status_code
-
-
-@app.errorhandler(InvalidAPIUsage)
-def invalid_api_usage(e):
-    return jsonify(e.message), e.status_code
 
 
 def get_events_from_db(tx, name: str):
@@ -49,7 +24,6 @@ def get_events_from_db(tx, name: str):
     return result.values('data', 'event_ids')
 
 
-@app.route('/', methods=['GET'])
 def get_person_events():
     name = request.args.get('name')
     if not name:
@@ -59,7 +33,7 @@ def get_person_events():
             "?name=Ахромеева+Алина+Ивановна"
         )
 
-    with driver.session() as session:
+    with current_app.driver.session() as session:
         events = session.execute_read(get_events_from_db, name=name)
 
     if not events:
@@ -76,5 +50,31 @@ def get_person_events():
     return flask.jsonify(response)
 
 
-if __name__ == "__main__":
-    app.run()
+def init_driver(uri: str, username: str, password: str):
+    current_app.driver = GraphDatabase.driver(uri, auth=(username, password))
+
+    current_app.driver.verify_connectivity()
+    return current_app.driver
+
+
+def create_app():
+    load_dotenv()
+
+    app = Flask('app')
+
+    with app.app_context():
+        init_driver(
+            os.getenv('NEO4J_URI'),
+            os.getenv('NEO4J_USERNAME'),
+            os.getenv('NEO4J_PASSWORD')
+        )
+
+    @app.errorhandler(InvalidAPIUsage)
+    def invalid_api_usage(e):
+        return jsonify(e.message), e.status_code
+
+    @app.route('/', methods=['GET'])
+    def index():
+        return get_person_events()
+
+    return app
